@@ -83,6 +83,9 @@ var handlers = {
     "ReserveRoomIntent": function () {
         console.log("Invoke reserve room intent ");
         var duration = getItem(this.event.request.intent.slots, "duration");
+        if (!duration) {
+            duration = this.attributes["duration"].toString();
+        }
         console.log("... with duration: " + duration);
 
         var that = this;
@@ -131,7 +134,7 @@ function checkForResponse() {
 function bookRoomRequest(duration, room, command, alexa, successCallback, failCallback) {
     var meetingResponseReseived = {};
     var params = {
-            MessageBody: `{ "requestId": "${requestId}", "command": "${command}", "duration", "${duration}", "roomId": "${room}", "requestBy": "kuanyao", "responseQueueUrl": "${responseQueueUrl}" }`,
+            MessageBody: `{ "requestId": "${requestId}", "command": "${command}", "duration": "${duration}", "roomId": "${room}", "requestBy": "kuanyao", "responseQueueUrl": "${responseQueueUrl}" }`,
             QueueUrl: "https://sqs.us-east-1.amazonaws.com/456270554954/reserveRoomReq"
         };
     console.log(params);
