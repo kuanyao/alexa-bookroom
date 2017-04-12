@@ -1,0 +1,10 @@
+ReserveRoomIntent reserve this room for {duration}
+ReserveRoomIntent book this room for {duration}
+ReserveRoomIntent keep this room for {duration}
+ReserveRoomIntent keep this place for {duration}
+ReserveRoomIntent book this place for {duration}
+ReserveRoomIntent reserve this place for {duration}
+ReserveRoomIntent keep here for {duration}
+ReserveRoomIntent book here for {duration}
+ReserveRoomIntent reserve here for {duration}
+ReserveRoomIntent take this place for {duration}

@@ -1,0 +1,42 @@
+{
+  "intents": [
+    {
+      "intent": "ReserveRoomIntent",
+      "slots": [
+        {
+          "name": "duration",
+          "type": "AMAZON.DURATION"
+        }
+      ]
+    },
+    { 
+      "intent": "GetUserIdIntent",
+      "slots": [
+        {
+          "name": "id",
+          "type": "AMAZON.Person"
+        }
+      ]
+    },
+    {
+      "intent": "GetStartTimeIntent",
+      "slots": [
+        {
+          "name": "startAt",
+          "type": "AMAZON.TIME"
+        }
+      ]
+    },
+    {
+      "intent": "AMAZON.HelpIntent"
+    },
+    {
+      "intent": "AMAZON.StopIntent"
+    },
+    {
+      "intent": "AMAZON.CancelIntent"
+    },
+    {"intent": "AMAZON.YesIntent"},
+    {"intent": "AMAZON.NoIntent"}
+  ]
+}
