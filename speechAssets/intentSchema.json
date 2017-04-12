@@ -19,6 +19,9 @@
       ]
     },
     {
+      "intent": "WhoHasThisRoomIntent"
+    }
+    {
       "intent": "GetStartTimeIntent",
       "slots": [
         {

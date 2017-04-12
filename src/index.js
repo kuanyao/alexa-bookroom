@@ -100,6 +100,9 @@ var handlers = {
                 that.emitWithState('NewSession');
             });
     },
+    "WhoHasThisRoomIntent": function() {
+        this.emit(":tell", "Kuan has this room, he always has this room.");
+    },
     "Unhandled": function() {
         this.emit(':tell', "Unknown command.");
     }

@@ -8,3 +8,5 @@ ReserveRoomIntent keep here for {duration}
 ReserveRoomIntent book here for {duration}
 ReserveRoomIntent reserve here for {duration}
 ReserveRoomIntent take this place for {duration}
+WhoHasThisRoomIntent who has this room
+WhoHasThisRoomIntent who got this room
