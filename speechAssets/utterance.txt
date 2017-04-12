@@ -8,3 +8,7 @@ ReserveRoomIntent keep here for {duration}
 ReserveRoomIntent book here for {duration}
 ReserveRoomIntent reserve here for {duration}
 ReserveRoomIntent take this place for {duration}
+
+GetUserIdIntent my user name is {id}
+GetUserIdIntent my name is {id}
+GetUserIdIntent {id}

@@ -1,5 +1,6 @@
 'use strict';
 var Alexa = require("alexa-sdk");
+var UserName = '';
 var AWS = require('aws-sdk');
 var sqs = new AWS.SQS();
 
@@ -99,6 +100,10 @@ var handlers = {
                 that.attributes["duration"] = duration;
                 that.emitWithState('NewSession');
             });
+    },
+    'GetUserIdIntent': function () {
+        UserName = this.event.request.intent.slots.id.value;
+        this.emit(':tell', 'User name saved!,');
     },
     "Unhandled": function() {
         this.emit(':tell', "Unknown command.");
