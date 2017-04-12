@@ -5,11 +5,11 @@ var sqs = new AWS.SQS();
 
 var requestQueueUrl = "https://sqs.us-east-1.amazonaws.com/456270554954/reserveRoomReq";
 var responseQueueUrl = "https://sqs.us-east-1.amazonaws.com/456270554954/meetingResponseQueue";
-var room = "IAD21/07/101";
+var room = "IAD21-01.404";
 
-var STATES = {
-    LAUNCH: 'LAUNCH',
-    WAITING_RESPONSE: 'WAITING_RESPONSE'
+var states = {
+    FINDROOM: '_FIND_ROOM',
+    BOOKROOM: '_BOOK_ROOM'
 };
 
 function makeId() {
@@ -28,59 +28,73 @@ var requestId = makeId();
 
 exports.handler = function(event, context, callback) {
     var alexa = Alexa.handler(event, context);
-    alexa.registerHandlers(handlers);
+    alexa.registerHandlers(handlers, findRoomHandlers, bookRoomHandlers);
     alexa.execute();
 };
+
+var findRoomHandlers = Alexa.CreateStateHandler(states.FINDROOM, {
+    "NewSession": function() {
+        this.emit(":ask", "Sorry this room has been reserved already, would you like me to search for another room for you?", "Would you like me to find another room for you?");
+    },
+    "AMAZON.YesIntent": function() {
+        var duration = this.attributes["duration"].toString();
+        var that = this;
+
+        bookRoomRequest(duration, room, "findroom", this,
+            (response) => {
+                var roomSuggestion = response.roomSuggestion;
+                that.attributes["room"] = roomSuggestion;
+                that.handler.state = states.BOOKROOM;
+                that.emitWithState('NewSession');
+            },
+            (response) => {
+                that.handler.state = states.FINDROOM;
+                that.attributes["duration"] = duration;
+                that.emitWithState('NewSession');
+            });
+    },
+    "AMAZON.NoIntent": function() {
+        this.emit(":tell", "no problem");
+    },
+    "Unhandled": function() {
+        this.emit(":ask", "would you like me to find another room?", "say yes or no"); 
+    }
+});
+
+var bookRoomHandlers = Alexa.CreateStateHandler(states.BOOKROOM, {
+    "NewSession": function() {
+        var roomSuggestion = this.attributes["room"].toString();
+        this.emit(":ask", `I have found room ${roomSuggestion} is available, would you like to take it?`, `Say yes to take room ${roomSuggestion} or no to cancel booking`);
+    },    
+    "AMAZON.YesIntent": function() {
+        room = this.attributes["room"].toString();
+        this.handler.state = "";
+        this.emitWithState("ReserveRoomIntent");
+    },
+    "AMAZON.NoIntent": function() {
+        this.emit(":tell", "no problem.");
+    },
+    "Unhandled": function() {
+        this.ask(":ask", "would you like to take this room?", "say yes or no");
+    }
+});
 
 var handlers = {
     "ReserveRoomIntent": function () {
         console.log("Invoke reserve room intent ");
         var duration = getItem(this.event.request.intent.slots, "duration");
         console.log("... with duration: " + duration);
-        var request = sendRequest(duration, room);
-        console.log(request);
 
         var that = this;
-        var meetingResponseReseived;
 
-        sendRequest(duration, room)
-            .then(function(data) {
-                console.log("successfull send sqs request.");
-                return checkForResponse();
-            })
-            .then(function(data){
-                console.log("check for response returned.");
-
-                data.Messages.forEach( msg => {
-                    var meetingResponse = JSON.parse(msg.Body);
-                    console.log(meetingResponse);
-                    if (meetingResponse.requestId == requestId || meetingResponse.requestId == "testingId") {
-                        meetingResponseReseived = meetingResponse;
-                    }
-                });
-                var params = {
-                    QueueUrl: responseQueueUrl, 
-                    Entries: data.Messages.map(m => { return { Id: m.MessageId, ReceiptHandle: m.ReceiptHandle }; })
-                };
-                console.log("deleting messages from queue.");
-                console.log(params);
-                return sqs.deleteMessageBatch(params).promise();
-            })
-            .then(function(data){
-                console.log("message has been deleted from response queue.");
-                console.log(data);
-                if (meetingResponseReseived.isRequestSatisfied) {
-                    that.emit(":tell", "I have reserved this room for you");
-                } else if (meetingResponseReseived) {
-                    that.emit(":tell", "Sorry this room has been reserved already");
-                } else {
-                    that.eimi(":tell", "Sorry I am unable to book you for any room at this time.");
-                }
-            })
-            .catch(function(error){
-                console.log("error");
-                console.log(error);
-                that.emit(':tell', 'there is an error');
+        bookRoomRequest(duration, room, "bookroom", this,
+            (response) => {
+                that.emit(":tell", "I have reserved this room for you");
+            },
+            (response) => {
+                that.handler.state = states.FINDROOM;
+                that.attributes["duration"] = duration;
+                that.emitWithState('NewSession');
             });
     },
     "Unhandled": function() {
@@ -114,33 +128,63 @@ function checkForResponse() {
     return sqs.receiveMessage(params).promise();
 }
 
-function sendRequest(duration, room) {
+function bookRoomRequest(duration, room, command, alexa, successCallback, failCallback) {
+    var meetingResponseReseived = {};
     var params = {
-            MessageAttributes: {
-                "room": {
-                    "DataType": "String",
-                    "StringValue": room
-                },
-                "duration": {
-                    "DataType": "String",
-                    "StringValue": duration
-                },
-                "startAt": {
-                    "DataType": "String",
-                    "StringValue": "now"
-                },
-                "responseQueueUrl": {
-                    "DataType": "String",
-                    "StringValue": responseQueueUrl
-                },
-                "requestId": {
-                    "DataType": "String",
-                    "StringValue": requestId
-                }
-            }, 
-            MessageBody: "ReserveForRoom",
+            MessageBody: `{ "requestId": "${requestId}", "command": "${command}", "duration", "${duration}", "roomId": "${room}", "requestBy": "kuanyao", "responseQueueUrl": "${responseQueueUrl}" }`,
             QueueUrl: "https://sqs.us-east-1.amazonaws.com/456270554954/reserveRoomReq"
         };
     console.log(params);
-    return sqs.sendMessage(params).promise();
+
+    sqs.sendMessage(params).promise()
+        .then(function(data) {
+            console.log("successfull send sqs request.");
+            return checkForResponse();
+        })
+        .then(function(data){
+            console.log("check for response returned.");
+
+            if (!data.Messages) {
+                console.log("timeout reached. no response from sqs.");
+                return;
+            }
+
+            console.log("Total messages received: " + data.Messages.length);
+
+            data.Messages.forEach( msg => {
+                var meetingResponse = JSON.parse(msg.Body);
+                console.log(meetingResponse);
+                if ((meetingResponse.requestId == requestId || meetingResponse.requestId == "testingId")
+                    && meetingResponse.command == command) {
+                    meetingResponseReseived = meetingResponse;
+                    console.log("match metting response found in queue.");
+                }
+            });
+            var params = {
+                QueueUrl: responseQueueUrl, 
+                Entries: data.Messages.map(m => { return { Id: m.MessageId, ReceiptHandle: m.ReceiptHandle }; })
+            };
+            console.log("deleting messages from queue.");
+            console.log(params);
+            return sqs.deleteMessageBatch(params).promise();
+        })
+        .then(function(data){
+            if (!!data) {
+                console.log("message has been deleted from response queue.");
+                console.log(data);
+            }
+            if (meetingResponseReseived.isRequestSatisfied === true) {
+                successCallback(meetingResponseReseived);
+            } else if (meetingResponseReseived.isRequestSatisfied === false) {
+                failCallback(meetingResponseReseived);
+            } else {
+                alexa.emit(":tell", "Sorry I am unable to book you for any room at this time.");
+            }
+        })
+        .catch(function(error){
+            console.log("error");
+            console.log(error);
+            that.emit(':tell', 'there is an error');
+        });
+
 }
